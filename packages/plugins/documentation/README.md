@@ -104,7 +104,6 @@ plugin documentation {
     output                 = './docs/schema'
     title                  = 'Acme API Schema'
     fieldOrder             = 'alphabetical'
-    groupBy                = 'category'
     includeInternalModels  = true
     includeRelationships   = true
     includePolicies        = true
@@ -119,7 +118,6 @@ plugin documentation {
 | `output` | `string` | ZenStack default output path | Directory to write generated docs |
 | `title` | `string` | `"Schema Documentation"` | Heading on the index page |
 | `fieldOrder` | `"declaration"` or `"alphabetical"` | `"declaration"` | How fields are ordered in tables |
-| `groupBy` | `"category"` | *(none)* | Group models into subdirectories by their `@@meta('doc:category')` value |
 | `includeInternalModels` | `boolean` | `false` | Include models marked `@@ignore` in output |
 | `includeRelationships` | `boolean` | `true` | Generate relationship sections and `relationships.md` |
 | `includePolicies` | `boolean` | `true` | Generate access policy tables |
@@ -160,7 +158,7 @@ model User {
 
 | Annotation | What it does |
 |---|---|
-| `@@meta('doc:category', '...')` | Shows **Category** in metadata. Used for `groupBy = 'category'` directory grouping. |
+| `@@meta('doc:category', '...')` | Shows **Category** label in metadata |
 | `@@meta('doc:since', '...')` | Shows **Since** version in metadata |
 | `@@meta('doc:deprecated', '...')` | Strikes through the name, adds a **Deprecated** badge, shows your message |
 | `@meta('doc:example', '...')` | Shows an example value in the field's description column |
@@ -215,37 +213,6 @@ The generated Markdown works with any static site generator that supports Markdo
 - **Docusaurus** — drop the output into `docs/` and add a sidebar entry
 - **VitePress** — use the output directory as a docs section
 - **GitHub Pages** — push to a `docs/` folder and enable Pages
-
-### Category-based organization
-
-For larger schemas, group models into subdirectories by domain:
-
-```prisma
-model User {
-    @@meta('doc:category', 'Identity')
-}
-model Post {
-    @@meta('doc:category', 'Content')
-}
-
-plugin documentation {
-    provider = '@zenstackhq/plugin-documentation'
-    output   = './docs/schema'
-    groupBy  = 'category'
-}
-```
-
-This produces:
-```text
-docs/schema/models/
-├── Identity/
-│   └── User.md
-├── Content/
-│   └── Post.md
-└── Uncategorized.md
-```
-
-Models without a `@@meta('doc:category')` annotation are combined into a single `Uncategorized.md` page. Assign a category to give each model its own page in a named subdirectory.
 
 ### Minimal output for simpler schemas
 

@@ -168,26 +168,6 @@ describe('documentation plugin: index page', () => {
         expect(indexContent).not.toContain('# Schema Documentation');
     });
 
-    it('groups models by category when groupBy = category', async () => {
-        const tmpDir = await generateFromSchema(`
-            model User {
-                id String @id @default(cuid())
-                @@meta('doc:category', 'Identity')
-            }
-            model Post {
-                id String @id @default(cuid())
-                @@meta('doc:category', 'Content')
-            }
-            model Uncategorized {
-                id String @id @default(cuid())
-            }
-        `, { groupBy: 'category' });
-
-        expect(fs.existsSync(path.join(tmpDir, 'models', 'Identity', 'User.md'))).toBe(true);
-        expect(fs.existsSync(path.join(tmpDir, 'models', 'Content', 'Post.md'))).toBe(true);
-        expect(fs.existsSync(path.join(tmpDir, 'models', 'Uncategorized.md'))).toBe(true);
-    });
-
     it('index page links to relationships.md', async () => {
         const tmpDir = await generateFromSchema(`
             model User {
@@ -203,27 +183,6 @@ describe('documentation plugin: index page', () => {
 
         const indexContent = readDoc(tmpDir, 'index.md');
         expect(indexContent).toContain('[Relationships](./relationships.md)');
-    });
-
-    it('groupBy=category produces correct index links', async () => {
-        const tmpDir = await generateFromSchema(`
-            model User {
-                id String @id @default(cuid())
-                @@meta('doc:category', 'Identity')
-            }
-            model Post {
-                id String @id @default(cuid())
-                @@meta('doc:category', 'Content')
-            }
-            model Uncategorized {
-                id String @id @default(cuid())
-            }
-        `, { groupBy: 'category' });
-
-        const indexContent = readDoc(tmpDir, 'index.md');
-        expect(indexContent).toContain('[User](./models/Identity/User.md)');
-        expect(indexContent).toContain('[Post](./models/Content/Post.md)');
-        expect(indexContent).toContain('[Uncategorized](./models/Uncategorized.md)');
     });
 
     it('deprecated model with description uses consistent em dash formatting', async () => {

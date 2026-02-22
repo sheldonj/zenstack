@@ -1,4 +1,4 @@
-import { isDataModel, isEnum, isProcedure, isTypeDef, type DataModel, type Model } from '@zenstackhq/language/ast';
+import { isDataModel, isEnum, isProcedure, isTypeDef, type Model } from '@zenstackhq/language/ast';
 import { extractDocMeta, extractProcedureComments, isIgnoredModel, stripCommentPrefix } from '../extractors';
 import type { DocMeta, GenerationContext } from '../types';
 import { generatedHeader } from './common';
@@ -18,16 +18,6 @@ function formatIndexEntry(name: string, path: string, desc: string, meta: DocMet
     return `- [${name}](${path})${suffix}`;
 }
 
-function getModelPath(model: DataModel, groupBy: unknown): string {
-    if (groupBy === 'category') {
-        const meta = extractDocMeta(model.attributes);
-        if (meta.category) {
-            return `./models/${meta.category}/${model.name}.md`;
-        }
-    }
-    return `./models/${model.name}.md`;
-}
-
 /** Renders the top-level index page listing all models, views, types, enums, and procedures. */
 export function renderIndexPage(
     astModel: Model,
@@ -41,7 +31,6 @@ export function renderIndexPage(
             : 'Schema Documentation';
 
     const includeInternal = pluginOptions['includeInternalModels'] === true;
-    const groupBy = pluginOptions['groupBy'];
 
     const allDataModels = astModel.declarations
         .filter(isDataModel)
@@ -101,7 +90,7 @@ export function renderIndexPage(
         for (const m of models) {
             const desc = firstSentence(stripCommentPrefix(m.comments));
             const meta = extractDocMeta(m.attributes);
-            lines.push(formatIndexEntry(m.name, getModelPath(m, groupBy), desc, meta));
+            lines.push(formatIndexEntry(m.name, `./models/${m.name}.md`, desc, meta));
         }
         lines.push('');
     }

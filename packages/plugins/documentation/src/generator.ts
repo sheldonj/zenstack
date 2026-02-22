@@ -2,7 +2,7 @@ import { isDataModel, isEnum, isProcedure, isTypeDef } from '@zenstackhq/languag
 import type { CliGeneratorContext } from '@zenstackhq/sdk';
 import fs from 'node:fs';
 import path from 'node:path';
-import { collectRelationships, extractDocMeta, isIgnoredModel, resolveRenderOptions } from './extractors';
+import { collectRelationships, isIgnoredModel, resolveRenderOptions } from './extractors';
 import { renderEnumPage } from './renderers/enum-page';
 import { renderIndexPage } from './renderers/index-page';
 import { renderModelPage } from './renderers/model-page';
@@ -11,7 +11,7 @@ import { renderProcedurePage } from './renderers/procedure-page';
 import { renderTypePage } from './renderers/type-page';
 import { renderSkillPage } from './renderers/skill-page';
 import { renderViewPage } from './renderers/view-page';
-import { buildNavList, buildCategoryNavList } from './renderers/common';
+import { buildNavList } from './renderers/common';
 import type { GenerationContext } from './types';
 
 function resolveOutputDir(context: CliGeneratorContext): string {
@@ -33,7 +33,6 @@ export async function generate(context: CliGeneratorContext): Promise<void> {
     const options = resolveRenderOptions(context.pluginOptions);
     options.schemaDir = path.dirname(path.resolve(context.schemaFile));
     const includeInternal = context.pluginOptions['includeInternalModels'] === true;
-    const groupBy = context.pluginOptions['groupBy'];
 
     const genCtx: GenerationContext = {
         schemaFile: path.basename(context.schemaFile),
@@ -66,30 +65,11 @@ export async function generate(context: CliGeneratorContext): Promise<void> {
         fs.mkdirSync(modelsDir, { recursive: true });
         const sortedModels = [...models].sort((a, b) => a.name.localeCompare(b.name));
         const sortedModelNames = sortedModels.map((m) => m.name);
-
-        const modelDirMap = new Map<string, string>();
-        for (const model of sortedModels) {
-            let modelDir = modelsDir;
-            if (groupBy === 'category') {
-                const meta = extractDocMeta(model.attributes);
-                if (meta.category) {
-                    const safeName = meta.category.replace(/[/\\]/g, '_');
-                    modelDir = path.join(modelsDir, safeName);
-                    fs.mkdirSync(modelDir, { recursive: true });
-                }
-            }
-            modelDirMap.set(model.name, modelDir);
-        }
-
-        const usesCategoryDirs = groupBy === 'category';
-        const modelNav = usesCategoryDirs
-            ? buildCategoryNavList(sortedModelNames, modelDirMap)
-            : buildNavList(sortedModelNames, './');
+        const modelNav = buildNavList(sortedModelNames, './');
 
         for (const model of sortedModels) {
-            const modelDir = modelDirMap.get(model.name)!;
             writeFile(
-                path.join(modelDir, `${model.name}.md`),
+                path.join(modelsDir, `${model.name}.md`),
                 renderModelPage(model, options, procedures, modelNav.get(model.name)),
             );
             filesGenerated++;
