@@ -37,7 +37,7 @@ function resolveOutputDir(opts: PluginOptions, defaultPath: string): string {
  * Reads the ZModel AST from `context`, renders markdown pages for every entity,
  * and writes them into the configured output directory.
  */
-export async function generate(context: CliGeneratorContext): Promise<void> {
+export function generate(context: CliGeneratorContext): void {
     const startTime = performance.now();
     const pluginOpts = resolvePluginOptions(context.pluginOptions);
     const outputDir = resolveOutputDir(pluginOpts, context.defaultOutputPath);
