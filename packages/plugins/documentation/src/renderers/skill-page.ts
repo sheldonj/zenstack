@@ -1,5 +1,6 @@
-import { isDataModel, type DataModel, type DataField, type Enum, type Model, type Procedure, type TypeDef } from '@zenstackhq/language/ast';
+import { isDataModel, type DataModel, type DataField, type Enum, type Procedure, type TypeDef } from '@zenstackhq/language/ast';
 import { stripCommentPrefix, getAttrName, formatAttrArgs, extractProcedureComments } from '../extractors';
+import type { SkillPageProps } from '../types';
 
 interface SkillCounts {
     models: number;
@@ -526,16 +527,8 @@ function renderFooter(hasRelationships: boolean): string[] {
  * The output includes a schema overview, detected conventions, access/validation constraints,
  * workflow guidance, and a full entity reference with prisma declaration blocks.
  */
-export function renderSkillPage(
-    _schema: Model,
-    title: string,
-    models: DataModel[],
-    views: DataModel[],
-    enums: Enum[],
-    typeDefs: TypeDef[],
-    procedures: Procedure[],
-    hasRelationships: boolean = false,
-): string {
+export function renderSkillPage(props: SkillPageProps): string {
+    const { title, models, views, enums, typeDefs, procedures, hasRelationships } = props;
     const counts: SkillCounts = {
         models: models.length,
         views: views.length,
@@ -544,15 +537,13 @@ export function renderSkillPage(
         procedures: procedures.length,
     };
 
-    const lines: string[] = [];
-
-    lines.push(...renderFrontmatter(title));
-    lines.push(...renderOverview(title, counts, models, views));
-    lines.push(...renderConventions(models, typeDefs));
-    lines.push(...renderConstraints(models));
-    lines.push(...renderWorkflow(procedures, hasRelationships));
-    lines.push(...renderEntityReference(models, enums, typeDefs, views));
-    lines.push(...renderFooter(hasRelationships));
-
-    return lines.join('\n');
+    return [
+        ...renderFrontmatter(title),
+        ...renderOverview(title, counts, models, views),
+        ...renderConventions(models, typeDefs),
+        ...renderConstraints(models),
+        ...renderWorkflow(procedures, hasRelationships),
+        ...renderEntityReference(models, enums, typeDefs, views),
+        ...renderFooter(hasRelationships),
+    ].join('\n');
 }

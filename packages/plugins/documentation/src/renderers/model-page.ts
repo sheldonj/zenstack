@@ -1,7 +1,5 @@
-import { isDataModel, isTypeDef, type DataField, type DataModel, type DataModelAttribute, type Procedure } from '@zenstackhq/language/ast';
+import { isDataModel, isTypeDef, type DataField, type DataModel, type DataModelAttribute, type Procedure, type TypeDef } from '@zenstackhq/language/ast';
 import { getAllFields } from '@zenstackhq/language/utils';
-import { breadcrumbs, declarationBlock, generatedHeader, navigationFooter, referencesSection, renderDescription, renderMetadata, sectionHeading } from './common';
-import type { Navigation, RelationType, RenderOptions } from '../types';
 import {
     extractDocMeta,
     extractFieldDocExample,
@@ -13,6 +11,8 @@ import {
     isFieldRequired,
     stripCommentPrefix,
 } from '../extractors';
+import type { ModelPageProps, RelationType } from '../types';
+import { breadcrumbs, declarationBlock, generatedHeader, navigationFooter, referencesSection, renderDescription, renderMetadata, sectionHeading } from './common';
 
 interface ValidationRule {
     fieldName: string;
@@ -78,6 +78,44 @@ function collectFKFieldNames(allFields: DataField[]): Set<string> {
     return fkNames;
 }
 
+// ── Section renderers ───────────────────────────────────────────────────
+
+function renderHeader(props: ModelPageProps): string[] {
+    const docMeta = extractDocMeta(props.model.attributes);
+    const isDeprecated = !!docMeta.deprecated;
+    const nameDisplay = isDeprecated ? `~~${props.model.name}~~` : props.model.name;
+
+    const badgeParts = ['<kbd>Model</kbd>'];
+    const hasAuth = props.model.attributes.some((a) => a.decl.ref?.name === '@@auth');
+    const hasDelegate = props.model.attributes.some((a) => a.decl.ref?.name === '@@delegate');
+    if (hasAuth) badgeParts.push('<kbd>Auth</kbd>');
+    if (hasDelegate) badgeParts.push('<kbd>Delegate</kbd>');
+    if (isDeprecated) badgeParts.push('<kbd>Deprecated</kbd>');
+
+    return [
+        ...generatedHeader(props.options.genCtx),
+        breadcrumbs('Models', props.model.name, '../'),
+        '',
+        `# ${nameDisplay} ${badgeParts.join(' ')}`,
+        '',
+    ];
+}
+
+function renderMetadataBlock(props: ModelPageProps): string[] {
+    const docMeta = extractDocMeta(props.model.attributes);
+    const sourcePath = getRelativeSourcePath(props.model, props.options.schemaDir);
+
+    const mapAttr = props.model.attributes.find((a) => a.decl.ref?.name === '@@map');
+    const schemaAttr = props.model.attributes.find((a) => a.decl.ref?.name === '@@schema');
+    const mappedTable = mapAttr?.args[0]?.$cstNode?.text?.replace(/^['"]|['"]$/g, '');
+    const dbSchema = schemaAttr?.args[0]?.$cstNode?.text?.replace(/^['"]|['"]$/g, '');
+
+    return [
+        ...renderMetadata(docMeta, sourcePath, { mappedTable, dbSchema }),
+        ...declarationBlock(props.model.$cstNode?.text, sourcePath),
+    ];
+}
+
 function renderEntityDiagram(modelName: string, allFields: DataField[]): string[] {
     const fkNames = collectFKFieldNames(allFields);
     const scalarFields = allFields.filter(
@@ -85,9 +123,7 @@ function renderEntityDiagram(modelName: string, allFields: DataField[]): string[
     );
     if (scalarFields.length === 0) return [];
 
-    const lines = [...sectionHeading('Entity Diagram'), ''];
-    lines.push('```mermaid', 'erDiagram');
-    lines.push(`    ${modelName} {`);
+    const lines = [...sectionHeading('Entity Diagram'), '', '```mermaid', 'erDiagram', `    ${modelName} {`];
 
     for (const field of scalarFields) {
         const typeName = field.type.reference?.ref?.name ?? field.type.type ?? 'Unknown';
@@ -102,8 +138,26 @@ function renderEntityDiagram(modelName: string, allFields: DataField[]): string[
         lines.push(`        ${typeName} ${field.name}${annotation}`);
     }
 
-    lines.push('    }');
-    lines.push('```', '');
+    lines.push('    }', '```', '');
+    return lines;
+}
+
+function renderTableOfContents(sections: string[]): string[] {
+    if (sections.length <= 1) return [];
+    const tocLinks = sections.map((s) => {
+        const anchor = s.toLowerCase().replace(/\s+/g, '-');
+        return `[${s}](#${anchor})`;
+    });
+    return [tocLinks.join(' · '), ''];
+}
+
+function renderMixinsSection(mixinRefs: TypeDef[]): string[] {
+    if (mixinRefs.length === 0) return [];
+    const lines = [...sectionHeading('Mixins'), ''];
+    for (const mixin of mixinRefs) {
+        lines.push(`- [${mixin.name}](../types/${mixin.name}.md)`);
+    }
+    lines.push('');
     return lines;
 }
 
@@ -187,31 +241,27 @@ function renderRelationshipsSection(modelName: string, relationFields: DataField
 function renderPoliciesSection(policyAttrs: DataModelAttribute[]): string[] {
     if (policyAttrs.length === 0) return [];
 
-    const lines = [
+    return [
         ...sectionHeading('Access Policies'), '',
         '> [!IMPORTANT]',
         '> Operations are **denied by default**. `@@allow` rules grant access; `@@deny` rules override any allow.', '',
         '| Operation | Rule | Effect |',
         '| --- | --- | --- |',
+        ...policyAttrs.map((attr) => {
+            const effect = attr.decl.ref?.name === '@@allow' ? 'Allow' : 'Deny';
+            const operationArg = attr.args[0]?.$cstNode?.text ?? '';
+            const operation = operationArg.replace(/^['"]|['"]$/g, '');
+            const condition = attr.args[1]?.$cstNode?.text ?? '';
+            return `| ${operation} | \`${condition}\` | ${effect} |`;
+        }),
+        '',
     ];
-
-    for (const attr of policyAttrs) {
-        const attrName = attr.decl.ref?.name ?? '';
-        const effect = attrName === '@@allow' ? 'Allow' : 'Deny';
-        const operationArg = attr.args[0]?.$cstNode?.text ?? '';
-        const operation = operationArg.replace(/^['"]|['"]$/g, '');
-        const condition = attr.args[1]?.$cstNode?.text ?? '';
-        lines.push(`| ${operation} | \`${condition}\` | ${effect} |`);
-    }
-    lines.push('');
-    return lines;
 }
 
 function renderIndexesSection(indexAttrs: DataModelAttribute[]): string[] {
     if (indexAttrs.length === 0) return [];
 
     const lines = [...sectionHeading('Indexes'), '', '| Fields | Type |', '| --- | --- |'];
-
     for (const attr of indexAttrs) {
         const attrName = attr.decl.ref?.name ?? '';
         let indexType: string;
@@ -256,48 +306,12 @@ function renderProceduresSection(procedures: Procedure[], modelName: string): st
     return lines;
 }
 
+// ── Main composition ────────────────────────────────────────────────────
+
 /** Renders a full documentation page for a data model, including fields, relationships, policies, validation, and procedures. */
-export function renderModelPage(model: DataModel, options: RenderOptions, procedures: Procedure[] = [], navigation?: Navigation): string {
-    const docMeta = extractDocMeta(model.attributes);
-    const isDeprecated = !!docMeta.deprecated;
-    const nameDisplay = isDeprecated ? `~~${model.name}~~` : model.name;
-
-    const badgeParts = ['<kbd>Model</kbd>'];
-    const hasAuth = model.attributes.some((a) => a.decl.ref?.name === '@@auth');
-    const hasDelegate = model.attributes.some((a) => a.decl.ref?.name === '@@delegate');
-    if (hasAuth) badgeParts.push('<kbd>Auth</kbd>');
-    if (hasDelegate) badgeParts.push('<kbd>Delegate</kbd>');
-    if (isDeprecated) badgeParts.push('<kbd>Deprecated</kbd>');
-    const badges = ' ' + badgeParts.join(' ');
-
-    const lines: string[] = [
-        ...generatedHeader(options.genCtx),
-        breadcrumbs('Models', model.name, '../'),
-        '',
-        `# ${nameDisplay}${badges}`,
-        '',
-    ];
-
-    lines.push(...renderDescription(model.comments, stripCommentPrefix));
-    const sourcePath = getRelativeSourcePath(model, options.schemaDir);
-
-    const mapAttr = model.attributes.find((a) => a.decl.ref?.name === '@@map');
-    const schemaAttr = model.attributes.find((a) => a.decl.ref?.name === '@@schema');
-    const mappedTable = mapAttr?.args[0]?.$cstNode?.text?.replace(/^['"]|['"]$/g, '');
-    const dbSchema = schemaAttr?.args[0]?.$cstNode?.text?.replace(/^['"]|['"]$/g, '');
-
-    lines.push(...renderMetadata(docMeta, sourcePath, { mappedTable, dbSchema }));
-
-    lines.push(...declarationBlock(model.$cstNode?.text, sourcePath));
-
+export function renderModelPage(props: ModelPageProps): string {
+    const { model, options, procedures } = props;
     const allFields = getAllFields(model, true);
-
-    lines.push(...renderEntityDiagram(model.name, [...allFields]));
-
-    const mixinRefs = model.mixins
-        .map((ref) => ref.ref)
-        .filter((t): t is NonNullable<typeof t> => t != null)
-        .sort((a, b) => a.name.localeCompare(b.name));
 
     const orderedFields =
         options.fieldOrder === 'alphabetical'
@@ -320,6 +334,11 @@ export function renderModelPage(model: DataModel, options: RenderOptions, proced
 
     const validationRules = collectValidationRules(orderedFields, model.attributes);
 
+    const mixinRefs = model.mixins
+        .map((ref) => ref.ref)
+        .filter((t): t is NonNullable<typeof t> => t != null)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
     const sections: string[] = [];
     if (mixinRefs.length > 0) sections.push('Mixins');
     if (orderedFields.length > 0) sections.push('Fields');
@@ -327,35 +346,23 @@ export function renderModelPage(model: DataModel, options: RenderOptions, proced
     if (options.includePolicies && policyAttrs.length > 0) sections.push('Access Policies');
     if (options.includeIndexes && indexAttrs.length > 0) sections.push('Indexes');
     if (options.includeValidation && validationRules.length > 0) sections.push('Validation Rules');
-
     const referencingProcs = procedures.filter((p) => isModelReferencedByProc(p, model.name));
     if (referencingProcs.length > 0) sections.push('Used in Procedures');
 
-    if (sections.length > 1) {
-        const tocLinks = sections.map((s) => {
-            const anchor = s.toLowerCase().replace(/\s+/g, '-');
-            return `[${s}](#${anchor})`;
-        });
-        lines.push(tocLinks.join(' · '), '');
-    }
-
-    if (mixinRefs.length > 0) {
-        lines.push(...sectionHeading('Mixins'), '');
-        for (const mixin of mixinRefs) {
-            lines.push(`- [${mixin.name}](../types/${mixin.name}.md)`);
-        }
-        lines.push('');
-    }
-
-    lines.push(...renderFieldsSection(model, orderedFields));
-    if (options.includeRelationships) lines.push(...renderRelationshipsSection(model.name, relationFields));
-    if (options.includePolicies) lines.push(...renderPoliciesSection(policyAttrs));
-    if (options.includeIndexes) lines.push(...renderIndexesSection(indexAttrs));
-    if (options.includeValidation) lines.push(...renderValidationSection(validationRules));
-    lines.push(...renderProceduresSection(procedures, model.name));
-
-    lines.push(...referencesSection('model'));
-    lines.push(...navigationFooter(navigation));
-
-    return lines.join('\n');
+    return [
+        ...renderHeader(props),
+        ...renderDescription(model.comments, stripCommentPrefix),
+        ...renderMetadataBlock(props),
+        ...renderEntityDiagram(model.name, [...allFields]),
+        ...renderTableOfContents(sections),
+        ...renderMixinsSection(mixinRefs),
+        ...renderFieldsSection(model, orderedFields),
+        ...(options.includeRelationships ? renderRelationshipsSection(model.name, relationFields) : []),
+        ...(options.includePolicies ? renderPoliciesSection(policyAttrs) : []),
+        ...(options.includeIndexes ? renderIndexesSection(indexAttrs) : []),
+        ...(options.includeValidation ? renderValidationSection(validationRules) : []),
+        ...renderProceduresSection(procedures, model.name),
+        ...referencesSection('model'),
+        ...navigationFooter(props.navigation),
+    ].join('\n');
 }

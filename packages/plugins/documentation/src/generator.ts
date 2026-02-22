@@ -74,13 +74,12 @@ export function generate(context: CliGeneratorContext): void {
     if (models.length > 0) {
         fs.mkdirSync(modelsDir, { recursive: true });
         const sortedModels = [...models].sort((a, b) => a.name.localeCompare(b.name));
-        const sortedModelNames = sortedModels.map((m) => m.name);
-        const modelNav = buildNavList(sortedModelNames, './');
+        const modelNav = buildNavList(sortedModels.map((m) => m.name), './');
 
         for (const model of sortedModels) {
             writeFile(
                 path.join(modelsDir, `${model.name}.md`),
-                renderModelPage(model, options, procedures, modelNav.get(model.name)),
+                renderModelPage({ model, options, procedures, navigation: modelNav.get(model.name) }),
             );
             filesGenerated++;
         }
@@ -89,12 +88,12 @@ export function generate(context: CliGeneratorContext): void {
     const viewsDir = path.join(outputDir, 'views');
     if (views.length > 0) {
         fs.mkdirSync(viewsDir, { recursive: true });
-        const sortedViewNames = [...views].sort((a, b) => a.name.localeCompare(b.name)).map((v) => v.name);
-        const viewNav = buildNavList(sortedViewNames, './');
-        for (const view of views) {
+        const sortedViews = [...views].sort((a, b) => a.name.localeCompare(b.name));
+        const viewNav = buildNavList(sortedViews.map((v) => v.name), './');
+        for (const view of sortedViews) {
             writeFile(
                 path.join(viewsDir, `${view.name}.md`),
-                renderViewPage(view, options, viewNav.get(view.name)),
+                renderViewPage({ view, options, navigation: viewNav.get(view.name) }),
             );
             filesGenerated++;
         }
@@ -103,7 +102,7 @@ export function generate(context: CliGeneratorContext): void {
     if (hasRelationships) {
         writeFile(
             path.join(outputDir, 'relationships.md'),
-            renderRelationshipsPage(allRelations, genCtx),
+            renderRelationshipsPage({ relations: allRelations, genCtx }),
         );
         filesGenerated++;
     }
@@ -112,12 +111,12 @@ export function generate(context: CliGeneratorContext): void {
     const typeDefs = context.model.declarations.filter(isTypeDef);
     if (typeDefs.length > 0) {
         fs.mkdirSync(typesDir, { recursive: true });
-        const sortedTypeNames = [...typeDefs].sort((a, b) => a.name.localeCompare(b.name)).map((t) => t.name);
-        const typeNav = buildNavList(sortedTypeNames, './');
-        for (const typeDef of typeDefs) {
+        const sortedTypes = [...typeDefs].sort((a, b) => a.name.localeCompare(b.name));
+        const typeNav = buildNavList(sortedTypes.map((t) => t.name), './');
+        for (const typeDef of sortedTypes) {
             writeFile(
                 path.join(typesDir, `${typeDef.name}.md`),
-                renderTypePage(typeDef, [...models, ...views], options, typeNav.get(typeDef.name)),
+                renderTypePage({ typeDef, allModels: [...models, ...views], options, navigation: typeNav.get(typeDef.name) }),
             );
             filesGenerated++;
         }
@@ -127,12 +126,12 @@ export function generate(context: CliGeneratorContext): void {
     const enums = context.model.declarations.filter(isEnum);
     if (enums.length > 0) {
         fs.mkdirSync(enumsDir, { recursive: true });
-        const sortedEnumNames = [...enums].sort((a, b) => a.name.localeCompare(b.name)).map((e) => e.name);
-        const enumNav = buildNavList(sortedEnumNames, './');
-        for (const enumDecl of enums) {
+        const sortedEnums = [...enums].sort((a, b) => a.name.localeCompare(b.name));
+        const enumNav = buildNavList(sortedEnums.map((e) => e.name), './');
+        for (const enumDecl of sortedEnums) {
             writeFile(
                 path.join(enumsDir, `${enumDecl.name}.md`),
-                renderEnumPage(enumDecl, models, options, enumNav.get(enumDecl.name)),
+                renderEnumPage({ enumDecl, allModels: models, options, navigation: enumNav.get(enumDecl.name) }),
             );
             filesGenerated++;
         }
@@ -141,22 +140,25 @@ export function generate(context: CliGeneratorContext): void {
     const proceduresDir = path.join(outputDir, 'procedures');
     if (procedures.length > 0) {
         fs.mkdirSync(proceduresDir, { recursive: true });
-        const sortedProcNames = [...procedures].sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.name);
-        const procNav = buildNavList(sortedProcNames, './');
-        for (const proc of procedures) {
+        const sortedProcs = [...procedures].sort((a, b) => a.name.localeCompare(b.name));
+        const procNav = buildNavList(sortedProcs.map((p) => p.name), './');
+        for (const proc of sortedProcs) {
             writeFile(
                 path.join(proceduresDir, `${proc.name}.md`),
-                renderProcedurePage(proc, options, procNav.get(proc.name)),
+                renderProcedurePage({ proc, options, navigation: procNav.get(proc.name) }),
             );
             filesGenerated++;
         }
     }
 
     if (pluginOpts.generateSkill) {
-        const title = pluginOpts.title ?? 'Schema Documentation';
         writeFile(
             path.join(outputDir, 'SKILL.md'),
-            renderSkillPage(context.model, title, models, views, enums, typeDefs, procedures, hasRelationships),
+            renderSkillPage({
+                schema: context.model,
+                title: pluginOpts.title ?? 'Schema Documentation',
+                models, views, enums, typeDefs, procedures, hasRelationships,
+            }),
         );
         filesGenerated++;
     }
@@ -167,7 +169,7 @@ export function generate(context: CliGeneratorContext): void {
 
     writeFile(
         path.join(outputDir, 'index.md'),
-        renderIndexPage(context.model, pluginOpts, hasRelationships, genCtx),
+        renderIndexPage({ astModel: context.model, pluginOptions: pluginOpts, hasRelationships, genCtx }),
     );
 }
 

@@ -61,3 +61,63 @@ export interface Navigation {
     prev?: NavLink;
     next?: NavLink;
 }
+
+// ── Page Props ──────────────────────────────────────────────────────────
+
+import type { DataModel, Enum, Model, Procedure, TypeDef } from '@zenstackhq/language/ast';
+
+export interface EnumPageProps {
+    enumDecl: Enum;
+    allModels: DataModel[];
+    options: RenderOptions;
+    navigation?: Navigation;
+}
+
+export interface ModelPageProps {
+    model: DataModel;
+    options: RenderOptions;
+    procedures: Procedure[];
+    navigation?: Navigation;
+}
+
+export interface ViewPageProps {
+    view: DataModel;
+    options: RenderOptions;
+    navigation?: Navigation;
+}
+
+export interface TypePageProps {
+    typeDef: TypeDef;
+    allModels: DataModel[];
+    options: RenderOptions;
+    navigation?: Navigation;
+}
+
+export interface ProcedurePageProps {
+    proc: Procedure;
+    options: RenderOptions;
+    navigation?: Navigation;
+}
+
+export interface RelationshipsPageProps {
+    relations: Relationship[];
+    genCtx?: GenerationContext;
+}
+
+export interface IndexPageProps {
+    astModel: Model;
+    pluginOptions: PluginOptions;
+    hasRelationships: boolean;
+    genCtx?: GenerationContext;
+}
+
+export interface SkillPageProps {
+    schema: Model;
+    title: string;
+    models: DataModel[];
+    views: DataModel[];
+    enums: Enum[];
+    typeDefs: TypeDef[];
+    procedures: Procedure[];
+    hasRelationships: boolean;
+}
