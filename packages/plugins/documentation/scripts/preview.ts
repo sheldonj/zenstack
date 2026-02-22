@@ -23,9 +23,12 @@ async function run() {
     });
     console.log(`Preview output written to: ${outputDir}`);
     console.log('');
-    function listFiles(dir: string, prefix = '') {
+    function listFiles(dir: string, prefix = '', seen = new Set<string>()) {
+        const realDir = fs.realpathSync(dir);
+        if (seen.has(realDir)) return;
+        seen.add(realDir);
         for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-            if (e.isDirectory()) listFiles(path.join(dir, e.name), prefix + e.name + '/');
+            if (e.isDirectory()) listFiles(path.join(dir, e.name), prefix + e.name + '/', seen);
             else console.log('  ' + prefix + e.name);
         }
     }
