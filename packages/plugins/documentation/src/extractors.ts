@@ -7,7 +7,7 @@ import {
     type DataModelAttribute,
 } from '@zenstackhq/language/ast';
 import path from 'node:path';
-import type { DocMeta, Relationship, RelationType, RenderOptions } from './types';
+import type { DocMeta, PluginOptions, Relationship, RelationType, RenderOptions } from './types';
 
 interface AstLike {
     $cstNode?: { root?: { element?: { $document?: { uri?: { fsPath?: string } } } } };
@@ -187,13 +187,13 @@ export function extractProcedureComments(
     return commentLines.join(joinWith).trim();
 }
 
-/** Converts raw plugin options into a typed `RenderOptions` with defaults. */
-export function resolveRenderOptions(pluginOptions: Record<string, unknown>): RenderOptions {
+/** Converts plugin options into a typed `RenderOptions` with defaults. */
+export function resolveRenderOptions(opts: PluginOptions): RenderOptions {
     return {
-        includeRelationships: pluginOptions['includeRelationships'] !== false,
-        includePolicies: pluginOptions['includePolicies'] !== false,
-        includeValidation: pluginOptions['includeValidation'] !== false,
-        includeIndexes: pluginOptions['includeIndexes'] !== false,
-        fieldOrder: pluginOptions['fieldOrder'] === 'alphabetical' ? 'alphabetical' : 'declaration',
+        includeRelationships: opts.includeRelationships !== false,
+        includePolicies: opts.includePolicies !== false,
+        includeValidation: opts.includeValidation !== false,
+        includeIndexes: opts.includeIndexes !== false,
+        fieldOrder: opts.fieldOrder === 'alphabetical' ? 'alphabetical' : 'declaration',
     };
 }

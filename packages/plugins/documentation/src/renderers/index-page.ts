@@ -1,6 +1,6 @@
 import { isDataModel, isEnum, isProcedure, isTypeDef, type Model } from '@zenstackhq/language/ast';
 import { extractDocMeta, extractProcedureComments, isIgnoredModel, stripCommentPrefix } from '../extractors';
-import type { DocMeta, GenerationContext } from '../types';
+import type { DocMeta, GenerationContext, PluginOptions } from '../types';
 import { generatedHeader } from './common';
 
 function firstSentence(text: string): string {
@@ -21,16 +21,12 @@ function formatIndexEntry(name: string, path: string, desc: string, meta: DocMet
 /** Renders the top-level index page listing all models, views, types, enums, and procedures. */
 export function renderIndexPage(
     astModel: Model,
-    pluginOptions: Record<string, unknown>,
+    pluginOptions: PluginOptions,
     hasRelationships: boolean,
     genCtx?: GenerationContext,
 ): string {
-    const title =
-        typeof pluginOptions['title'] === 'string'
-            ? pluginOptions['title']
-            : 'Schema Documentation';
-
-    const includeInternal = pluginOptions['includeInternalModels'] === true;
+    const title = pluginOptions.title ?? 'Schema Documentation';
+    const includeInternal = pluginOptions.includeInternalModels === true;
 
     const allDataModels = astModel.declarations
         .filter(isDataModel)

@@ -12,14 +12,24 @@ import { renderTypePage } from './renderers/type-page';
 import { renderSkillPage } from './renderers/skill-page';
 import { renderViewPage } from './renderers/view-page';
 import { buildNavList } from './renderers/common';
-import type { GenerationContext } from './types';
+import type { GenerationContext, PluginOptions } from './types';
 
-function resolveOutputDir(context: CliGeneratorContext): string {
-    const output = context.pluginOptions['output'];
-    if (typeof output === 'string') {
-        return path.resolve(output);
-    }
-    return path.resolve(context.defaultOutputPath);
+function resolvePluginOptions(raw: Record<string, unknown>): PluginOptions {
+    return {
+        output: typeof raw['output'] === 'string' ? raw['output'] : undefined,
+        title: typeof raw['title'] === 'string' ? raw['title'] : undefined,
+        fieldOrder: raw['fieldOrder'] === 'alphabetical' ? 'alphabetical' : 'declaration',
+        includeInternalModels: raw['includeInternalModels'] === true,
+        includeRelationships: raw['includeRelationships'] !== false,
+        includePolicies: raw['includePolicies'] !== false,
+        includeValidation: raw['includeValidation'] !== false,
+        includeIndexes: raw['includeIndexes'] !== false,
+        generateSkill: raw['generateSkill'] === true,
+    };
+}
+
+function resolveOutputDir(opts: PluginOptions, defaultPath: string): string {
+    return path.resolve(opts.output ?? defaultPath);
 }
 
 /**
@@ -29,10 +39,10 @@ function resolveOutputDir(context: CliGeneratorContext): string {
  */
 export async function generate(context: CliGeneratorContext): Promise<void> {
     const startTime = performance.now();
-    const outputDir = resolveOutputDir(context);
-    const options = resolveRenderOptions(context.pluginOptions);
+    const pluginOpts = resolvePluginOptions(context.pluginOptions);
+    const outputDir = resolveOutputDir(pluginOpts, context.defaultOutputPath);
+    const options = resolveRenderOptions(pluginOpts);
     options.schemaDir = path.dirname(path.resolve(context.schemaFile));
-    const includeInternal = context.pluginOptions['includeInternalModels'] === true;
 
     const genCtx: GenerationContext = {
         schemaFile: path.basename(context.schemaFile),
@@ -51,7 +61,7 @@ export async function generate(context: CliGeneratorContext): Promise<void> {
     const modelsDir = path.join(outputDir, 'models');
     const allDataModels = context.model.declarations
         .filter(isDataModel)
-        .filter((m) => includeInternal || !isIgnoredModel(m));
+        .filter((m) => pluginOpts.includeInternalModels || !isIgnoredModel(m));
 
     const models = allDataModels.filter((m) => !m.isView);
     const views = allDataModels.filter((m) => m.isView);
@@ -142,10 +152,8 @@ export async function generate(context: CliGeneratorContext): Promise<void> {
         }
     }
 
-    if (context.pluginOptions['generateSkill'] === true) {
-        const title = typeof context.pluginOptions['title'] === 'string'
-            ? context.pluginOptions['title']
-            : 'Schema Documentation';
+    if (pluginOpts.generateSkill) {
+        const title = pluginOpts.title ?? 'Schema Documentation';
         writeFile(
             path.join(outputDir, 'SKILL.md'),
             renderSkillPage(context.model, title, models, views, enums, typeDefs, procedures, hasRelationships),
@@ -159,7 +167,7 @@ export async function generate(context: CliGeneratorContext): Promise<void> {
 
     writeFile(
         path.join(outputDir, 'index.md'),
-        renderIndexPage(context.model, context.pluginOptions, hasRelationships, genCtx),
+        renderIndexPage(context.model, pluginOpts, hasRelationships, genCtx),
     );
 }
 

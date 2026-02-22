@@ -1,3 +1,16 @@
+/** User-facing plugin options from the ZModel plugin block. */
+export interface PluginOptions {
+    output?: string;
+    title?: string;
+    fieldOrder?: 'declaration' | 'alphabetical';
+    includeInternalModels?: boolean;
+    includeRelationships?: boolean;
+    includePolicies?: boolean;
+    includeValidation?: boolean;
+    includeIndexes?: boolean;
+    generateSkill?: boolean;
+}
+
 /** Metadata extracted from `@@meta` model-level attributes (e.g. `doc:category`, `doc:since`). */
 export interface DocMeta {
     category?: string;
