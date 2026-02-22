@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { generateFromSchema, readDoc } from '../utils';
 
 describe('documentation plugin: type page', () => {
@@ -26,55 +26,52 @@ describe('documentation plugin: type page', () => {
         expect(typeDoc).toContain('field-updatedAt');
     });
 
-    it('type page shows Used By section linking to models that use it', async () => {
-        const tmpDir = await generateFromSchema(`
-            type Timestamps {
-                createdAt DateTime @default(now())
-                updatedAt DateTime @updatedAt
-            }
-            model User with Timestamps {
-                id String @id @default(cuid())
-            }
-            model Post with Timestamps {
-                id String @id @default(cuid())
-            }
-            model Tag {
-                id String @id @default(cuid())
-            }
-        `);
+    describe('type with mixin consumers', () => {
+        let tmpDir: string;
+        beforeAll(async () => {
+            tmpDir = await generateFromSchema(`
+                type Timestamps {
+                    createdAt DateTime @default(now())
+                    updatedAt DateTime @updatedAt
+                }
+                model User with Timestamps {
+                    id String @id @default(cuid())
+                }
+                model Post with Timestamps {
+                    id String @id @default(cuid())
+                }
+                model Tag {
+                    id String @id @default(cuid())
+                }
+            `);
+        });
+        afterAll(() => { if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true }); });
 
-        const typeDoc = readDoc(tmpDir, 'types', 'Timestamps.md');
-        expect(typeDoc).toContain('## 🔗 Used By');
-        expect(typeDoc).toContain('[Post](../models/Post.md');
-        expect(typeDoc).toContain('[User](../models/User.md');
-        expect(typeDoc).not.toContain('[Tag]');
-    });
+        it('type page shows Used By section linking to models that use it', () => {
+            const typeDoc = readDoc(tmpDir, 'types', 'Timestamps.md');
+            expect(typeDoc).toContain('## 🔗 Used By');
+            expect(typeDoc).toContain('[Post](../models/Post.md');
+            expect(typeDoc).toContain('[User](../models/User.md');
+            expect(typeDoc).not.toContain('[Tag]');
+        });
 
-    it('type page includes class diagram showing mixin usage', async () => {
-        const tmpDir = await generateFromSchema(`
-            type Timestamps {
-                createdAt DateTime @default(now())
-                updatedAt DateTime @updatedAt
-            }
-            model User with Timestamps {
-                id String @id @default(cuid())
-            }
-            model Post with Timestamps {
-                id String @id @default(cuid())
-            }
-            model Tag {
-                id String @id @default(cuid())
-            }
-        `);
+        it('type page includes class diagram showing mixin usage', () => {
+            const typeDoc = readDoc(tmpDir, 'types', 'Timestamps.md');
+            expect(typeDoc).toContain('```mermaid');
+            expect(typeDoc).toContain('classDiagram');
+            expect(typeDoc).toContain('Timestamps');
+            expect(typeDoc).toContain('mixin');
+            expect(typeDoc).toContain('Post');
+            expect(typeDoc).toContain('User');
+            expect(typeDoc).not.toMatch(/Tag/);
+        });
 
-        const typeDoc = readDoc(tmpDir, 'types', 'Timestamps.md');
-        expect(typeDoc).toContain('```mermaid');
-        expect(typeDoc).toContain('classDiagram');
-        expect(typeDoc).toContain('Timestamps');
-        expect(typeDoc).toContain('mixin');
-        expect(typeDoc).toContain('Post');
-        expect(typeDoc).toContain('User');
-        expect(typeDoc).not.toMatch(/Tag/);
+        it('type Used By deep-links to specific field anchors on model pages', () => {
+            const typeDoc = readDoc(tmpDir, 'types', 'Timestamps.md');
+            expect(typeDoc).toContain('## 🔗 Used By');
+            expect(typeDoc).toContain('../models/Post.md#field-createdAt');
+            expect(typeDoc).toContain('../models/User.md#field-createdAt');
+        });
     });
 
     it('type page omits class diagram when no models use it', async () => {
@@ -163,25 +160,6 @@ describe('documentation plugin: type page', () => {
         expect(typeDoc).toContain('<a id="field-updatedAt"></a>');
     });
 
-    it('type Used By deep-links to specific field anchors on model pages', async () => {
-        const tmpDir = await generateFromSchema(`
-            type Timestamps {
-                createdAt DateTime @default(now())
-                updatedAt DateTime @updatedAt
-            }
-            model User with Timestamps {
-                id String @id @default(cuid())
-            }
-            model Post with Timestamps {
-                id String @id @default(cuid())
-            }
-        `);
-
-        const typeDoc = readDoc(tmpDir, 'types', 'Timestamps.md');
-        expect(typeDoc).toContain('## 🔗 Used By');
-        expect(typeDoc).toContain('../models/Post.md#field-createdAt');
-        expect(typeDoc).toContain('../models/User.md#field-createdAt');
-    });
 });
 
 describe('documentation plugin: view page', () => {
