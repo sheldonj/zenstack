@@ -227,8 +227,8 @@ test/
 ├── utils.ts                     # Shared helpers
 ├── generator/                   # Unit tests by page type
 │   ├── common.test.ts           # Cross-page features (15 tests)
-│   ├── index-page.test.ts       # Index page (19 tests)
-│   ├── model-page.test.ts       # Model page (47 tests)
+│   ├── index-page.test.ts       # Index page (17 tests)
+│   ├── model-page.test.ts       # Model page (46 tests)
 │   ├── enum-page.test.ts        # Enum page (9 tests)
 │   ├── type-view-page.test.ts   # Type + View pages (14 tests)
 │   ├── procedure-page.test.ts   # Procedure page (13 tests)
